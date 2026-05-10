@@ -79,6 +79,12 @@ def generate_launch_description():
         output='screen',
     )
 
+    ros_gz_image_bridge = Node(
+        package='ros_gz_image',
+        executable='image_bridge',
+        arguments=["/camera/image_raw"]
+    )
+
     #create an empty launch description object
     launchDescriptionObject = LaunchDescription()
 
@@ -89,5 +95,5 @@ def generate_launch_description():
     launchDescriptionObject.add_action(spawnModelNodeGazebo)
     launchDescriptionObject.add_action(nodeRobotStatePublisher)
     launchDescriptionObject.add_action(start_gazebo_ros_bridge_cmd)
-
+    launchDescriptionObject.add_action(ros_gz_image_bridge)
     return launchDescriptionObject

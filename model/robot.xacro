@@ -201,23 +201,23 @@
 
 <!--######### LIDAR/CAMERA joint/link############-->
 
-<joint name="lidar_joint" type="fixed" >
+<joint name="camera_joint" type="fixed" >
     <parent link="body_link"/>
-    <child link="lidar_link" />
-    <origin xyz="0.0 0 ${b+r}" rpy="0 0 0" />
-    <axis xyz="0 1 0" rpy="0 0 0" />
+    <child link="camera_link" />
+    <origin xyz=" ${a/2} 0 ${b}" rpy="0 0 0" />
+    <!--<axis xyz="0 1 0" rpy="0 0 0" />-->
 </joint>
 
-<link name="lidar_link">
+<link name="camera_link">
     <visual>
-        <origin rpy="0 0 0" xyz="0 0 0.05"/>   
         <geometry>
-            <cylinder length="0.1" radius="0.1" />
+            <box size="0.010 0.03 0.03"/>
         </geometry>
+        <material name="red" />
          
     </visual>
 
-    <collision>
+    <!-- <collision>
         <origin rpy="0 0 0" xyz="0 0 0.05"/>   
         <geometry>
             <cylinder length="0.1" radius="0.1" />
@@ -228,7 +228,17 @@
         <mass value="1e-6" />
         <origin xyz="0 0 0" rpy="0 0 0" />
         <inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="1e-6" izz="1e-6" />
-    </inertial>
+    </inertial> -->
 </link>
 
-</robot>
+
+<!-- x right, y down, z forward-->
+<joint name="camera_optical_joint" type="fixed" >
+    <parent link="camera_link"/>
+    <child link="camera_optical_link" />
+    <origin xyz="0 0 0" rpy="-1.570795 0 -1.570795" />
+</joint>
+
+<link name="camera_optical_link" />
+
+</robot> 
