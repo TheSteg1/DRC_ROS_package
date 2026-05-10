@@ -36,6 +36,22 @@
     <material>Gazebo/Blue</material>
 </gazebo>
 
+<!-- <gazebo reference="track_left_link">
+    <mu1>0.8</mu1>
+    <mu2>0.8</mu2>
+    <kp>1000</kp>
+    <kd>1.0</kd>
+    <material>Gazebo/Blue</material>
+</gazebo>
+
+<gazebo reference="track_right_link">
+    <mu1>0.8</mu1>
+    <mu2>0.8</mu2>
+    <kp>1000</kp>
+    <kd>1.0</kd>
+    <material>Gazebo/Yellow</material>
+</gazebo> -->
+
 <gazebo>
 <plugin filename="gz-sim-diff-drive-system" name="gz::sim::systems::DiffDrive">
 

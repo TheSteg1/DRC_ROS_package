@@ -34,13 +34,13 @@ def generate_launch_description():
 
 
     #if using our own world model
-    #worldFileRelativePath = 'model/my_world.world'
-    #pathWorldFile = os.path.join(get_package_share_directory(namePackage), worldFileRelativePath)
-    #gazeboLaunch=IncludeLaunchDescription(gazebo_rosPackageLaunch, launch_arguments={'gz_args': ['-v', '-v4', '-u', pathWorldFile], 'on_exit_shutdown': 'true'}.items())
+    worldFileRelativePath = 'model/track_world.sdf'
+    pathWorldFile = os.path.join(get_package_share_directory(namePackage), worldFileRelativePath)
+    gazeboLaunch = IncludeLaunchDescription(gazebo_rosPackageLaunch, launch_arguments={'gz_args': pathWorldFile, 'on_exit_shutdown': 'true'}.items())
 
     #if using empty world model
     #can change -u to -r to start immeiately
-    gazeboLaunch = IncludeLaunchDescription(gazebo_rosPackageLaunch, launch_arguments={'gz_args': ['-r -v -v4 empty.sdf'], 'on_exit_shutdown': 'true'}.items())
+    #gazeboLaunch = IncludeLaunchDescription(gazebo_rosPackageLaunch, launch_arguments={'gz_args': ['-r -v -v4 empty.sdf'], 'on_exit_shutdown': 'true'}.items())
 
     # Gazebo node
     spawnModelNodeGazebo = Node(

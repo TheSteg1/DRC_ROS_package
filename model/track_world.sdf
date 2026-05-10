@@ -1,0 +1,193 @@
+<?xml version="1.0" ?>
+<sdf version="1.9">
+  <world name="track_world">
+
+    <!-- ========== Physics ========== -->
+    <physics name="default_physics" type="ode">
+      <max_step_size>0.001</max_step_size>
+      <real_time_factor>1.0</real_time_factor>
+      <real_time_update_rate>1000</real_time_update_rate>
+    </physics>
+
+    <!-- ========== Plugins ========== -->
+    <plugin filename="libgz-sim8-physics-system.so"
+            name="gz::sim::systems::Physics"/>
+    <plugin filename="libgz-sim8-user-commands-system.so"
+            name="gz::sim::systems::UserCommands"/>
+    <plugin filename="libgz-sim8-scene-broadcaster-system.so"
+            name="gz::sim::systems::SceneBroadcaster"/>
+    <!-- <plugin filename="libgz-sim8-sensors-system.so"
+            name="gz::sim::systems::Sensors">
+      <render_engine>ogre2</render_engine>
+    </plugin> -->
+
+    <!-- ========== Scene / Lighting ========== -->
+    <scene>
+      <ambient>0.4 0.4 0.4 1.0</ambient>
+      <background>0.7 0.7 0.7 1.0</background>
+      <shadows>true</shadows>
+    </scene>
+
+    <light name="sun" type="directional">
+      <pose>0 0 10 0 0 0</pose>
+      <diffuse>0.8 0.8 0.8 1</diffuse>
+      <specular>0.2 0.2 0.2 1</specular>
+      <direction>-0.5 0.1 -0.9</direction>
+      <cast_shadows>true</cast_shadows>
+    </light>
+
+    <!-- ========== Track Surface — Left Half ========== -->
+    <model name="track_left">
+      <static>true</static>
+      <pose>0 -6 0.001 1.5707963267948966 0 1.5707963267948966</pose>
+      <link name="track_left_link">
+
+        <collision name="track_left_collision">
+          <geometry>
+            <mesh>
+              <uri>BlueTrack.stl</uri>
+              <scale>0.001 0.001 0.001</scale>
+            </mesh>
+          </geometry>
+          <surface>
+            <friction>
+              <ode>
+                <mu>0.8</mu>
+                <mu2>0.8</mu2>
+              </ode>
+            </friction>
+            <contact>
+              <ode>
+                <kp>1000</kp>
+                <kd>1.0</kd>
+              </ode>
+            </contact>
+          </surface>
+        </collision>
+
+        <visual name="track_left_visual">
+          <geometry>
+            <mesh>
+              <uri>BlueTrack.stl</uri>
+              <scale>0.001 0.001 0.001</scale>
+            </mesh>
+          </geometry>
+          <material>
+            <script>
+              <!-- Example: Gazebo/Blue, Gazebo/Red, Gazebo/FlatBlack -->
+              <name>Gazebo/Blue</name>
+              <uri>file://media/materials/scripts/gazebo.material</uri>
+            </script>
+          </material>
+          <!-- <material>
+            <ambient>0.3 0.3 0.3 1</ambient>
+            <diffuse>0.4 0.4 0.4 1</diffuse>
+            <specular>0.1 0.1 0.1 1</specular>
+          </material> -->
+        </visual>
+
+      </link>
+    </model>
+
+    <!-- ========== Track Surface — Right Half ========== -->
+    <model name="track_right">
+      <static>true</static>
+      <pose>0 -6 0.001 1.5707963267948966 0 1.5707963267948966</pose>
+      <link name="track_right_link">
+
+        <collision name="track_right_collision">
+          <geometry>
+            <mesh>
+              <uri>YellowTrack.stl</uri>
+              <scale>0.001 0.001 0.001</scale>
+            </mesh>
+          </geometry>
+          <surface>
+            <friction>
+              <ode>
+                <mu>0.8</mu>
+                <mu2>0.8</mu2>
+              </ode>
+            </friction>
+            <contact>
+              <ode>
+                <kp>1000</kp>
+                <kd>1.0</kd>
+              </ode>
+            </contact>
+          </surface>
+        </collision>
+
+        <visual name="track_right_visual">
+          <geometry>
+            <mesh>
+              <uri>YellowTrack.stl</uri>
+              <scale>0.001 0.001 0.001</scale>
+            </mesh>
+          </geometry>
+          <material>
+          <script>
+            <!-- Example: Gazebo/Blue, Gazebo/Red, Gazebo/FlatBlack -->
+            <name>Gazebo/Yellow</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+          <!-- <material>
+            <ambient>0.3 0.3 0.3 1</ambient>
+            <diffuse>0.4 0.4 0.4 1</diffuse>
+            <specular>0.1 0.1 0.1 1</specular>
+          </material> -->
+        </visual>
+
+      </link>
+    </model>
+
+    <!-- ========== Ground Plane ========== -->
+    <model name="ground_plane">
+        <static>true</static>   
+        <pose>0 0 0 0 0 0</pose>
+        <link name="ground_plane_link">
+            <collision name="collision">
+                <geometry>
+                    <plane>
+                        <normal>0 0 1</normal>
+                        <size>100 100</size>
+                    </plane>
+                </geometry>
+                <surface>
+                    <friction>
+                        <ode>
+                            <mu>0.8</mu>
+                            <mu2>0.8</mu2>
+                        </ode>
+                    </friction>
+                </surface>
+            </collision>
+
+            <visual name="visual">
+                <geometry>
+                    <plane>
+                        <normal>0 0 1</normal>
+                        <size>100 100</size>
+                    </plane>
+                </geometry>
+                <material>
+                    <script>
+                        <uri>file://media/materials/scripts/gazebo.material</uri>
+                        <name>Gazebo/Grey</name>
+                    </script>
+                </material>
+            </visual>
+        </link>
+    </model>
+    <!-- ========== Spawn your rover separately ========== -->
+    <!--
+      gz service -s /world/track_world/create \
+        -reqtype gz.msgs.EntityFactory \
+        -reptype gz.msgs.Boolean \
+        -timeout 5000 \
+        -req 'sdf_filename: "models/my_rover/model.sdf", pose: {position: {x: 0, y: 0, z: 0.1}}'
+    -->
+
+  </world>
+</sdf>
