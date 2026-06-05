@@ -3,7 +3,7 @@
 import os 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import IncludeLaunchDescription
+from launch.actions import IncludeLaunchDescription, SetEnvironmentVariable
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 
 from launch_ros.actions import Node
@@ -32,6 +32,9 @@ def generate_launch_description():
 
     ########launch description#########
 
+    # Set the Gazebo model path to include the mobile_robot models
+    # modelPath = os.path.join(get_package_share_directory(namePackage), 'model')
+    # setGzModelPath = SetEnvironmentVariable('GZ_SIM_RESOURCE_PATH', modelPath)
 
     #if using our own world model
     worldFileRelativePath = 'model/track_world.sdf'
@@ -91,6 +94,9 @@ def generate_launch_description():
 
     #create an empty launch description object
     launchDescriptionObject = LaunchDescription()
+
+    #set the Gazebo model path
+    #launchDescriptionObject.add_action(setGzModelPath)
 
     #add gazeboLaunch
     launchDescriptionObject.add_action(gazeboLaunch)

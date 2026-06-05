@@ -35,6 +35,7 @@ separation = 2 * s4
 def generate_launch_description():
     # Get package share directory
     mobile_robot_share = get_package_share_directory('mobile_robot')
+    print(f"Mobile Robot share directory: {mobile_robot_share}")
     controller_params_file = os.path.join(
         mobile_robot_share,
         'parameters',

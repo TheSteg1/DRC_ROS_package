@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<sdf version="1.6">
+  <model name="blueTrack">
+    <static>true</static>
+    <link name="link">
+
+      <!-- Visual (what you see) -->
+      <visual name="visual">
+        <geometry>
+          <mesh>
+            <uri>model://model/blueTrack/meshes/blueTrack.stl</uri>
+            <scale>1 1 1</scale>
+          </mesh>
+        </geometry>
+      </visual>
+
+      <!-- Collision (physics interaction) -->
+      <collision name="collision">
+        <geometry>
+          <mesh>
+            <uri>model://model/blueTrack/meshes/blueTrack.stl</uri>
+            <scale>1 1 1</scale>
+          </mesh>
+        </geometry>
+      </collision>
+
+    </link>
+  </model>
+</sdf>

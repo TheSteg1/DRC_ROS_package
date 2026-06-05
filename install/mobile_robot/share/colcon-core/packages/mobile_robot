@@ -1,1 +1,0 @@
-controller_manager:image_processor:joint_state_publisher:robot_state_publisher:ros_gz:ros_gz_bridge:ros_gz_sim:twist_controller:xacro
