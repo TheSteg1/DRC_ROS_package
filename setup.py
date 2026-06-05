@@ -30,6 +30,8 @@ setup(
     },
     entry_points={
         'console_scripts': [
+            'image_processor=mobile_robot.image_processor:main',
+            'twist_controller=mobile_robot.twist_controller:main',
         ],
     },
 )
