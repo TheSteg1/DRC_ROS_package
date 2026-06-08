@@ -17,5 +17,5 @@ diff_cont:
     base_frame_id: "base_footprint"
     use_stamped_vel: true
 
-#joint_broad:
+#joint_broad: UNUSED
 #  ros__parameters: {}

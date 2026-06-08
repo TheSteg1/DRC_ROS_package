@@ -162,8 +162,10 @@
             </noise>
         </camera>
         <topic>camera/image_raw</topic>
+        
+        <gz_frame_id>camera_optical_link</gz_frame_id>
     </sensor>
-    <gz_frame_id>camera_optical_link</gz_frame_id>
+    
 </gazebo>
 
 </robot>

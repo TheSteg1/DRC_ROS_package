@@ -216,16 +216,12 @@ class ImageProcessor(Node):
         blue_pixels = int(np.sum(blue_mask > 0))
 
         if yellow_pixels < min_pixels or blue_pixels < min_pixels:
-            # Not enough pixels from either mask — hold last known error
-            self.get_logger().warn(
-                f'Insufficient pixels (yellow: {yellow_pixels}, blue: {blue_pixels}), '
-                f'holding error={self._last_error:.3f}',
-                throttle_duration_sec=1.0,
-            )
-            if self._last_error > 0:
-                return self._last_error, False  # lanes not visible
-            else:
-                return self._last_error, False  # lanes not visible
+            if yellow_pixels < min_pixels:
+                self._last_error = -0.5  # bias right if we lose the left lane
+            elif blue_pixels < min_pixels:
+                self._last_error = 0.5   # bias left if we lose the right lane
+            return self._last_error, False  # lanes not visible
+
 
 
         # Find centroids using moments
