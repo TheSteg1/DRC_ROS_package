@@ -21,6 +21,7 @@
   <depend>image_processor</depend>
   <depend>twist_controller</depend>
   <depend>controller_manager</depend>
+  <depend>hsv_tuner_node</depend>
 
   <export>
     <build_type>ament_python</build_type>

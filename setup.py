@@ -37,6 +37,8 @@ setup(
         'console_scripts': [
             'image_processor=mobile_robot.image_processor:main',
             'twist_controller=mobile_robot.twist_controller:main',
+            'hsv_tuner_node=mobile_robot.hsv_tuner_node:main',
+            'start_stop=mobile_robot.start_stop:main'
         ],
     },
 )

@@ -18,7 +18,7 @@ import rclpy
 from rclpy.node import Node
 from rclpy.qos import QoSPresetProfiles
 
-from sensor_msgs.msg import Image
+from sensor_msgs.msg import CompressedImage, Image
 from std_msgs.msg import Float32, Bool
 
 import cv2
@@ -33,16 +33,16 @@ import numpy as np
 #
 # OpenCV HSV ranges:  H: 0-179   S: 0-255   V: 0-255
 # ---------------------------------------------------------------------------
-DEFAULT_HSV_LOWER_YELLOW = (25, 50, 50)   # yellow lower bound (H, S, V)
-DEFAULT_HSV_UPPER_YELLOW = (35, 255, 255)   # yellow upper bound
-DEFAULT_HSV_LOWER_BLUE = (100, 50, 50)   # blue lower bound (H, S, V)
-DEFAULT_HSV_UPPER_BLUE = (130, 255, 255)   # blue upper bound
+DEFAULT_HSV_LOWER_BLUE = (90, 0, 0)   # yellow lower bound (H, S, V)
+DEFAULT_HSV_UPPER_BLUE = (116, 255, 255)   # yellow upper bound
+DEFAULT_HSV_LOWER_YELLOW = (32, 68, 100)   # blue lower bound (H, S, V)
+DEFAULT_HSV_UPPER_YELLOW = (46, 255, 255)   # blue upper bound
 
 # Red wraps around H=0/179 in OpenCV, so we need two ranges and OR them.
-DEFAULT_HSV_LOWER_RED1 = (0,   100, 100)
-DEFAULT_HSV_UPPER_RED1 = (10,  255, 255)
-DEFAULT_HSV_LOWER_RED2 = (160, 100, 100)
-DEFAULT_HSV_UPPER_RED2 = (179, 255, 255)
+DEFAULT_HSV_LOWER_RED1 = (0, 0, 0)
+DEFAULT_HSV_UPPER_RED1 = (0, 0, 0)
+DEFAULT_HSV_LOWER_RED2 = (134, 0, 0)
+DEFAULT_HSV_UPPER_RED2 = (180, 255, 255)
 
 
 
@@ -67,12 +67,12 @@ class ImageProcessor(Node):
         # Only look at the bottom fraction of the frame — the track marking
         # is usually at the bottom of the camera view, and cropping reduces
         # noise from the environment above the floor.
-        self.declare_parameter('roi_fraction', 0.8)
+        self.declare_parameter('roi_fraction', 0.75)
 
         # Minimum pixel count to trust a detection.  Below this the track
         # is probably not visible and we should hold the last error rather
         # than commanding a wild turn.
-        self.declare_parameter('min_pixel_count', 10)
+        self.declare_parameter('min_pixel_count', 200)
 
         # Minimum red pixel count to declare an obstacle present.
         # Set this high enough to reject stray red pixels in the environment.
@@ -86,8 +86,8 @@ class ImageProcessor(Node):
         # Use SENSOR_DATA QoS profile (best-effort, small queue) — matches
         # what camera drivers typically publish with.
         self._image_sub = self.create_subscription(
-            Image,
-            'camera/image_raw',
+            CompressedImage,
+            'image_raw/compressed',
             self._image_callback,
             QoSPresetProfiles.SENSOR_DATA.value,
         )
@@ -119,7 +119,7 @@ class ImageProcessor(Node):
     # -----------------------------------------------------------------------
     def _image_callback(self, msg: Image):
         try:
-            bgr = self._bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
+            bgr = self._bridge.compressed_imgmsg_to_cv2(msg, desired_encoding='bgr8')
         except cv_bridge.CvBridgeError as e:
             self.get_logger().error(f'cv_bridge error: {e}')
             return
@@ -139,6 +139,7 @@ class ImageProcessor(Node):
             m  = cv2.inRange(hsv, lo, hi)
             m  = cv2.morphologyEx(m, cv2.MORPH_OPEN,  kernel)
             m  = cv2.morphologyEx(m, cv2.MORPH_CLOSE, kernel)
+            m  = self._filter_line_contours(m)   # <-- keep only long/thin shapes
             return m
  
         yellow_mask = make_mask('hsv_lower_yellow', 'hsv_upper_yellow')
@@ -165,17 +166,39 @@ class ImageProcessor(Node):
         #     self._mask_pub.publish(dbg_msg)
         # except cv_bridge.CvBridgeError as e:
         #     self.get_logger().warn(f'Could not publish debug image: {e}')
+
+
+        # --- Publish lane error ---
+        error, lanes_visible, midpoint_x = self._compute_lane_error(yellow_mask, blue_mask, w)
+
         try:
             combined_mask = cv2.bitwise_or(cv2.bitwise_or(yellow_mask, blue_mask), red_mask)
-            mask_msg = self._bridge.cv2_to_imgmsg(combined_mask, encoding='mono8')
-            mask_msg.header = msg.header   # preserve timestamp + frame_id
+
+            # Convert to BGR so we can draw colored markers
+            debug_img = cv2.cvtColor(combined_mask, cv2.COLOR_GRAY2BGR)
+
+            # Draw the image center line (reference) in white
+            center_x = w // 2
+            cv2.line(debug_img, (center_x, 0), (center_x, debug_img.shape[0]),
+                    (255, 255, 255), 1)
+
+            # Draw the midpoint marker if lanes are visible
+            if midpoint_x is not None:
+                mx = int(midpoint_x)
+                my = debug_img.shape[0] // 2  # vertical center of the ROI
+                cv2.drawMarker(debug_img, (mx, my), (0, 255, 0),
+                                markerType=cv2.MARKER_CROSS,
+                                markerSize=20, thickness=2)
+                cv2.circle(debug_img, (mx, my), 6, (0, 255, 0), 2)
+
+            mask_msg = self._bridge.cv2_to_imgmsg(debug_img, encoding='bgr8')
+            mask_msg.header = msg.header
             self._mask_pub.publish(mask_msg)
+            # mask_msg = self._bridge.cv2_to_imgmsg(combined_mask, encoding='mono8')
+            # mask_msg.header = msg.header   # preserve timestamp + frame_id
+            # self._mask_pub.publish(mask_msg)
         except cv_bridge.CvBridgeError as e:
             self.get_logger().warn(f'Could not publish debug mask: {e}')
- 
-        # --- Publish lane error ---
-        error, lanes_visible = self._compute_lane_error(yellow_mask, blue_mask, w)
-
 
         error_msg = Float32()
         error_msg.data = float(error)
@@ -187,7 +210,7 @@ class ImageProcessor(Node):
         
  
         # --- Publish obstacle info ---
-        offset, norm_size = self._compute_obstacle_offset(red_mask, w)
+        offset, norm_size = self._compute_obstacle_offset(red_mask, w)  # offset in [-1, 1], norm_size in [0, 1]
 
         obs_msg = Float32()
         obs_msg.data = float(offset)
@@ -197,6 +220,38 @@ class ImageProcessor(Node):
         size_msg.data = float(norm_size)
         self._obstacle_size_pub.publish(size_msg)
 
+    # -----------------------------------------------------------------------
+    # Filter for lines
+    # -----------------------------------------------------------------------
+    def _filter_line_contours(self, mask, min_area=10, min_aspect=4.0, max_extent=0.35):
+        """
+        Keep only contours that are long and thin (lane markings), and drop
+        blobby/short noise. Returns a new mask containing just the filtered
+        contours, filled in.
+        """
+        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        filtered = np.zeros_like(mask)
+
+        for c in contours:
+            area = cv2.contourArea(c)
+            if area < min_area:
+                continue
+
+            x, y, bw, bh = cv2.boundingRect(c)
+            if bw * bh == 0:
+                continue
+            extent = area / float(bw * bh)   # how much of its bbox it fills
+
+            rect = cv2.minAreaRect(c)        # rotated rect, handles diagonal lines
+            rw, rh = rect[1]
+            if min(rw, rh) == 0:
+                continue
+            aspect = max(rw, rh) / min(rw, rh)
+
+            if aspect >= min_aspect and extent <= max_extent:
+                cv2.drawContours(filtered, [c], -1, 255, thickness=cv2.FILLED)
+
+        return filtered
     # -----------------------------------------------------------------------
     # Error computation
     # -----------------------------------------------------------------------
@@ -217,10 +272,12 @@ class ImageProcessor(Node):
 
         if yellow_pixels < min_pixels or blue_pixels < min_pixels:
             if yellow_pixels < min_pixels:
-                self._last_error = -0.5  # bias right if we lose the left lane
+                self._last_error = -0.08  # bias right if we lose the left lane
+                pass
             elif blue_pixels < min_pixels:
-                self._last_error = 0.5   # bias left if we lose the right lane
-            return self._last_error, False  # lanes not visible
+                self._last_error = 0.08   # bias left if we lose the right lane
+                pass
+            return self._last_error, False, None  # lanes not visible
 
 
 
@@ -229,7 +286,7 @@ class ImageProcessor(Node):
         blue_moments = cv2.moments(blue_mask)
 
         if yellow_moments['m00'] == 0 or blue_moments['m00'] == 0:
-            return self._last_error, False  # lanes not visible
+            return self._last_error, False, None  # lanes not visible
 
         yellow_cx = yellow_moments['m10'] / yellow_moments['m00']
         blue_cx = blue_moments['m10'] / blue_moments['m00']
@@ -242,7 +299,7 @@ class ImageProcessor(Node):
         error = (midpoint - center) / center
 
         self._last_error = error
-        return error, True
+        return error, True, midpoint
 
     # -----------------------------------------------------------------------
  

@@ -42,13 +42,12 @@ def generate_launch_description():
         'controller_params.yaml'
     )
 
-    # Declare overridable arguments
+    # Update the default to the compressed topic
     camera_topic_arg = DeclareLaunchArgument(
         'camera_topic',
-        default_value='/camera_raw',
-        description='Input raw camera topic'
+        default_value='/camera/image_raw/compressed',
+        description='Input compressed camera topic'
     )
-
     processed_topic_arg = DeclareLaunchArgument(
         'processed_topic',
         default_value='/camera_processed',
@@ -60,15 +59,22 @@ def generate_launch_description():
         executable='image_processor',
         name='image_processor',
         output='screen',
-        parameters=[{
-            'camera_topic': LaunchConfiguration('camera_topic'),
-            'processed_topic': LaunchConfiguration('processed_topic'),
-        }],
-        remappings=[
-            ('/camera_raw',       LaunchConfiguration('camera_topic')),
-            ('/camera_processed', LaunchConfiguration('processed_topic')),
-        ]
+        # parameters=[{
+        #     'camera_topic': LaunchConfiguration('camera_topic'),
+        #     'processed_topic': LaunchConfiguration('processed_topic'),
+        # }],
+        # remappings=[
+        #     ('camera/image_raw/compressed', LaunchConfiguration('camera_topic')),
+        #     ('/camera_processed',           LaunchConfiguration('processed_topic')),
+        # ]
     )
+    # HSV_tuner_node = Node(
+    #     package='mobile_robot',
+    #     executable='hsv_tuner_node',
+    #     name='hsv_tuner_node',
+    #     output='screen',
+    # )
+
     # controller_manager_node = Node(
     #     package='controller_manager',
     #     executable='ros2_control_node',
@@ -85,24 +91,53 @@ def generate_launch_description():
         output='screen',
     )
 
-    diff_drive_spawner = Node(
-        package='controller_manager',
-        executable='spawner',
-        arguments=['diff_cont'],
-    )
-    joint_broad_spawner = Node(
-        package='controller_manager',
-        executable='spawner',
-        arguments=['joint_broad'],
-    )
+    # diff_drive_spawner = Node(
+    #     package='controller_manager',
+    #     executable='spawner',
+    #     arguments=['diff_cont'],
+    # )
+    # joint_broad_spawner = Node(
+    #     package='controller_manager',
+    #     executable='spawner',
+    #     arguments=['joint_broad'],
+    # )
+
+    # IPM_launch = IncludeLaunchDescription(
+    #     PythonLaunchDescriptionSource(
+    #         os.path.join(
+    #             get_package_share_directory('robot_vision'),
+    #             'launch',
+    #             'extract_lines.launch.py'
+    #         )
+    #     )
+    # )
+
+    # rviz_node = Node(
+    #     package='rviz2',
+    #     executable='rviz2',
+    #     name='rviz2',
+    #     output='screen'
+    # )
+
+    # rqt_image_view_node = Node(
+    #     package='rqt_image_view',
+    #     executable='rqt_image_view',
+    #     name='rqt_image_view',
+    #     output='screen',
+    #     arguments=['--ros-args', '--remap', '/image:=/debug/mask_image']
+    # )
 
     return LaunchDescription([
         camera_topic_arg,
         processed_topic_arg,
         camera_processor_node,
-        twist_controller_node,
+        #TimerAction(period=4.0, actions=[HSV_tuner_node]),
+        TimerAction(period=4.0, actions=[twist_controller_node]),
+        # IPM_launch,
+        # rviz_node,
+        #rqt_image_view_node,
         #controller_manager_node,
-        TimerAction(period=4.0, actions=[diff_drive_spawner]),
-        TimerAction(period=4.0, actions=[joint_broad_spawner]),
+        #TimerAction(period=4.0, actions=[diff_drive_spawner]),
+        # TimerAction(period=4.0, actions=[joint_broad_spawner]),
         
     ])
