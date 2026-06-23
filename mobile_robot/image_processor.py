@@ -33,16 +33,29 @@ import numpy as np
 #
 # OpenCV HSV ranges:  H: 0-179   S: 0-255   V: 0-255
 # ---------------------------------------------------------------------------
-DEFAULT_HSV_LOWER_BLUE = (90, 0, 0)   # yellow lower bound (H, S, V)
-DEFAULT_HSV_UPPER_BLUE = (116, 255, 255)   # yellow upper bound
-DEFAULT_HSV_LOWER_YELLOW = (32, 68, 100)   # blue lower bound (H, S, V)
-DEFAULT_HSV_UPPER_YELLOW = (46, 255, 255)   # blue upper bound
+DEFAULT_HSV_LOWER_BLUE = (80, 0, 65)   # blue lower bound (H, S, V)
+DEFAULT_HSV_UPPER_BLUE = (115, 255, 165)   # blue upper bound
+DEFAULT_HSV_LOWER_YELLOW = (30, 65, 100)   # yellow lower bound (H, S, V)
+DEFAULT_HSV_UPPER_YELLOW = (46, 255, 255)   # yellow upper bound
 
 # Red wraps around H=0/179 in OpenCV, so we need two ranges and OR them.
 DEFAULT_HSV_LOWER_RED1 = (0, 0, 0)
 DEFAULT_HSV_UPPER_RED1 = (0, 0, 0)
-DEFAULT_HSV_LOWER_RED2 = (134, 0, 0)
-DEFAULT_HSV_UPPER_RED2 = (180, 255, 255)
+DEFAULT_HSV_LOWER_RED2 = (0, 0, 0)
+DEFAULT_HSV_UPPER_RED2 = (0, 0, 0)
+# DEFAULT_HSV_LOWER_RED2 = (134, 0, 0)
+# DEFAULT_HSV_UPPER_RED2 = (180, 255, 255)
+
+# DEFAULT_HSV_LOWER_BLUE = (0, 0, 0)   # yellow lower bound (H, S, V)
+# DEFAULT_HSV_UPPER_BLUE = (0, 0, 0 ) #ywlow upper bound
+# DEFAULT_HSV_LOWER_YELLOW = (0, 0, 0)   # blue lower bound (H, S, V)
+# DEFAULT_HSV_UPPER_YELLOW = (0, 0, 0)   # blue upper bound
+
+# # Red wraps around H=0/179 in OpenCV, so we need two ranges and OR them.
+# DEFAULT_HSV_LOWER_RED1 = (0, 0, 0)
+# DEFAULT_HSV_UPPER_RED1 = (0, 0, 0)
+# DEFAULT_HSV_LOWER_RED2 = (0, 0, 0)
+# DEFAULT_HSV_UPPER_RED2 = (0, 0, 0)
 
 
 
@@ -67,7 +80,7 @@ class ImageProcessor(Node):
         # Only look at the bottom fraction of the frame — the track marking
         # is usually at the bottom of the camera view, and cropping reduces
         # noise from the environment above the floor.
-        self.declare_parameter('roi_fraction', 0.75)
+        self.declare_parameter('roi_fraction', 0.9)
 
         # Minimum pixel count to trust a detection.  Below this the track
         # is probably not visible and we should hold the last error rather
@@ -128,17 +141,20 @@ class ImageProcessor(Node):
         h, w = bgr.shape[:2]
         roi_top = int(h * (1.0 - roi_fraction))
         roi = bgr[roi_top:h, 0:w]
+        #blurred = cv2.GaussianBlur(roi, (3,3), 0)
  
         hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
-        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
  
         # --- Lane masks ---
         def make_mask(lower_param, upper_param):
             lo = np.array(self.get_parameter(lower_param).value, dtype=np.uint8)
             hi = np.array(self.get_parameter(upper_param).value, dtype=np.uint8)
             m  = cv2.inRange(hsv, lo, hi)
+            m  = cv2.morphologyEx(m, cv2.MORPH_CLOSE,  kernel)
+            #m  = cv2.erode(m, kernel, iterations=2)
             m  = cv2.morphologyEx(m, cv2.MORPH_OPEN,  kernel)
-            m  = cv2.morphologyEx(m, cv2.MORPH_CLOSE, kernel)
+            
             m  = self._filter_line_contours(m)   # <-- keep only long/thin shapes
             return m
  
@@ -146,14 +162,14 @@ class ImageProcessor(Node):
         blue_mask   = make_mask('hsv_lower_blue',   'hsv_upper_blue')
  
         # --- Obstacle mask (red wraps around hue, so combine two ranges) ---
-        lo1 = np.array(self.get_parameter('hsv_lower_red1').value, dtype=np.uint8)
-        hi1 = np.array(self.get_parameter('hsv_upper_red1').value, dtype=np.uint8)
-        lo2 = np.array(self.get_parameter('hsv_lower_red2').value, dtype=np.uint8)
-        hi2 = np.array(self.get_parameter('hsv_upper_red2').value, dtype=np.uint8)
-        red_mask = cv2.bitwise_or(cv2.inRange(hsv, lo1, hi1),
-                                  cv2.inRange(hsv, lo2, hi2))
-        red_mask = cv2.morphologyEx(red_mask, cv2.MORPH_OPEN,  kernel)
-        red_mask = cv2.morphologyEx(red_mask, cv2.MORPH_CLOSE, kernel)
+        # lo1 = np.array(self.get_parameter('hsv_lower_red1').value, dtype=np.uint8)
+        # hi1 = np.array(self.get_parameter('hsv_upper_red1').value, dtype=np.uint8)
+        # lo2 = np.array(self.get_parameter('hsv_lower_red2').value, dtype=np.uint8)
+        # hi2 = np.array(self.get_parameter('hsv_upper_red2').value, dtype=np.uint8)
+        # red_mask = cv2.bitwise_or(cv2.inRange(hsv, lo1, hi1),
+        #                           cv2.inRange(hsv, lo2, hi2))
+        # red_mask = cv2.morphologyEx(red_mask, cv2.MORPH_OPEN,  kernel)
+        # red_mask = cv2.morphologyEx(red_mask, cv2.MORPH_CLOSE, kernel)
  
         # --- Debug: publish colour-coded BGR overlay ---
         # try:
@@ -172,7 +188,8 @@ class ImageProcessor(Node):
         error, lanes_visible, midpoint_x = self._compute_lane_error(yellow_mask, blue_mask, w)
 
         try:
-            combined_mask = cv2.bitwise_or(cv2.bitwise_or(yellow_mask, blue_mask), red_mask)
+            #combined_mask = cv2.bitwise_or(cv2.bitwise_or(yellow_mask, blue_mask), red_mask)
+            combined_mask = cv2.bitwise_or(yellow_mask, blue_mask)
 
             # Convert to BGR so we can draw colored markers
             debug_img = cv2.cvtColor(combined_mask, cv2.COLOR_GRAY2BGR)
@@ -210,7 +227,9 @@ class ImageProcessor(Node):
         
  
         # --- Publish obstacle info ---
-        offset, norm_size = self._compute_obstacle_offset(red_mask, w)  # offset in [-1, 1], norm_size in [0, 1]
+        # offset, norm_size = self._compute_obstacle_offset(red_mask, w)  # offset in [-1, 1], norm_size in [0, 1]
+        offset = 0.0
+        norm_size = 0.0
 
         obs_msg = Float32()
         obs_msg.data = float(offset)
@@ -223,35 +242,50 @@ class ImageProcessor(Node):
     # -----------------------------------------------------------------------
     # Filter for lines
     # -----------------------------------------------------------------------
-    def _filter_line_contours(self, mask, min_area=10, min_aspect=4.0, max_extent=0.35):
+    def _filter_line_contours(self, mask, min_area=100, min_aspect=3.0, min_extent=0.2, max_extent=1):
         """
         Keep only contours that are long and thin (lane markings), and drop
         blobby/short noise. Returns a new mask containing just the filtered
         contours, filled in.
         """
+
+        # def auto_canny(image, sigma=0.33):
+        #     v = np.median(mask)
+
+        #     lower = int(max(0,(1.0-sigma)*v))
+        #     upper = int(min(255,(1.0+sigma)*v))
+        #     edged = cv2.Canny(image,lower,upper)
+
+        #     return edged
+    
+        # kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+
+        # filtered = auto_canny(mask)
+
+        
+
         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        filtered = np.zeros_like(mask)
+        final_edges = np.zeros_like(mask)
 
         for c in contours:
-            area = cv2.contourArea(c)
-            if area < min_area:
+             area = cv2.contourArea(c)
+             if area < min_area:
+                 continue
+
+             x, y, bw, bh = cv2.boundingRect(c)
+             if bw * bh == 0:
+                 continue
+             extent = area / float(bw * bh)   # how much of its bbox it fills
+
+             rect = cv2.minAreaRect(c)        # rotated rect, handles diagonal lines
+             rw, rh = rect[1]
+             if min(rw, rh) == 0:
                 continue
+             aspect = max(rw, rh) / min(rw, rh)
 
-            x, y, bw, bh = cv2.boundingRect(c)
-            if bw * bh == 0:
-                continue
-            extent = area / float(bw * bh)   # how much of its bbox it fills
-
-            rect = cv2.minAreaRect(c)        # rotated rect, handles diagonal lines
-            rw, rh = rect[1]
-            if min(rw, rh) == 0:
-                continue
-            aspect = max(rw, rh) / min(rw, rh)
-
-            if aspect >= min_aspect and extent <= max_extent:
-                cv2.drawContours(filtered, [c], -1, 255, thickness=cv2.FILLED)
-
-        return filtered
+             if  extent <= max_extent and aspect >= min_aspect: 
+                 cv2.drawContours(final_edges, [c], -1, 255, thickness=cv2.FILLED)
+        return final_edges
     # -----------------------------------------------------------------------
     # Error computation
     # -----------------------------------------------------------------------

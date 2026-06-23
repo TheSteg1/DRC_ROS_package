@@ -84,13 +84,6 @@ def generate_launch_description():
     # ],
     # )
 
-    twist_controller_node = Node(
-        package='mobile_robot',
-        executable='twist_controller',
-        name='twist_controller',
-        output='screen',
-    )
-
     # diff_drive_spawner = Node(
     #     package='controller_manager',
     #     executable='spawner',
@@ -132,7 +125,7 @@ def generate_launch_description():
         processed_topic_arg,
         camera_processor_node,
         #TimerAction(period=4.0, actions=[HSV_tuner_node]),
-        TimerAction(period=4.0, actions=[twist_controller_node]),
+        
         # IPM_launch,
         # rviz_node,
         #rqt_image_view_node,

@@ -45,8 +45,8 @@ class TwistController(Node):
         self.declare_parameter('avoid_size_threshold', 0.06)  # tune this
 
         # Line-follow behaviour
-        self.declare_parameter('forward_speed', 0.3)   # m/s cruise speed
-        self.declare_parameter('follow_kp',     0.5)   # proportional gain
+        self.declare_parameter('forward_speed', 0.4)   # m/s cruise speed
+        self.declare_parameter('follow_kp',     0.4)   # proportional gain
 
         # Obstacle-avoid behaviour
         self.declare_parameter('avoid_threshold', 1.0)  # always avoid if visible

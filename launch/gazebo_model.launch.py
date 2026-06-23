@@ -3,7 +3,7 @@
 import os 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import IncludeLaunchDescription, SetEnvironmentVariable
+from launch.actions import IncludeLaunchDescription, SetEnvironmentVariable, TimerAction
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 
 from launch_ros.actions import Node
@@ -92,6 +92,16 @@ def generate_launch_description():
         arguments=["/camera/image_raw"]
     )
 
+    twist_controller_node = Node(
+        package='mobile_robot',
+        executable='twist_controller',
+        name='twist_controller',
+        output='screen',
+        remappings=[
+        ('cmd_vel', '/diff_cont/cmd_vel'),
+        ],
+    )
+
     #create an empty launch description object
     launchDescriptionObject = LaunchDescription()
 
@@ -109,4 +119,5 @@ def generate_launch_description():
     launchDescriptionObject.add_action(nodeRobotStatePublisher)
     launchDescriptionObject.add_action(start_gazebo_ros_bridge_cmd)
     launchDescriptionObject.add_action(ros_gz_image_bridge)
+    launchDescriptionObject.add_action(TimerAction(period=4.0, actions=[twist_controller_node]))
     return launchDescriptionObject

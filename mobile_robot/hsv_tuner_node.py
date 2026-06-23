@@ -44,10 +44,10 @@ RANGES = {
 # Sensible starting defaults shown on the sliders before any param is read.
 # These get overwritten as soon as we fetch the live values from the node.
 DEFAULTS = {
-    'yellow': ([20, 100, 100], [35, 255, 255]),
-    'blue':   ([100, 100, 50], [130, 255, 255]),
-    'red1':   ([0, 100, 100], [10, 255, 255]),
-    'red2':   ([170, 100, 100], [180, 255, 255]),
+    'yellow': ([32, 68, 100], [46, 255, 255]),
+    'blue':   ([90, 0, 0], [116, 255, 255]),
+    'red1':   ([0, 0, 0], [0, 0, 0]),
+    'red2':   ([0, 0, 0], [0, 0, 0]),
 }
 
 
