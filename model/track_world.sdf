@@ -181,7 +181,7 @@
         </link>
     </model>
 
-    <model name="red_cube_1">
+    <!-- <model name="red_cube_1">
       <static>true</static>
       <pose>3.5 -0.25 0.125  0 0 0.52</pose>
       <link name="link">
@@ -198,7 +198,7 @@
           </material>
         </visual>
       </link>
-    </model>
+    </model> -->
 
     <!--<model name="red_cube_2">
       <static>true</static>

@@ -39,7 +39,13 @@ def generate_launch_description():
     #if using our own world model
     worldFileRelativePath = 'model/track_world.sdf'
     pathWorldFile = os.path.join(get_package_share_directory(namePackage), worldFileRelativePath)
-    gazeboLaunch = IncludeLaunchDescription(gazebo_rosPackageLaunch, launch_arguments={'gz_args': pathWorldFile, 'on_exit_shutdown': 'true'}.items())
+    gazeboLaunch = IncludeLaunchDescription(
+        gazebo_rosPackageLaunch,
+        launch_arguments={
+            'gz_args': pathWorldFile,
+            'on_exit_shutdown': 'true'
+        }.items()
+    )
 
     #if using empty world model
     #can change -u to -r to start immeiately
@@ -92,14 +98,62 @@ def generate_launch_description():
         arguments=["/camera/image_raw"]
     )
 
-    twist_controller_node = Node(
+    # twist_controller_node = Node(
+    #     package='mobile_robot',
+    #     executable='twist_controller',
+    #     name='twist_controller',
+    #     output='screen',
+    #     remappings=[
+    #     ('/cmd_vel', '/diff_cont/cmd_vel'),
+    #     ],
+    # )
+
+    pure_pursuit_node = Node(
         package='mobile_robot',
-        executable='twist_controller',
-        name='twist_controller',
+        executable='pure_pursuit',
+        name='pure_pursuit',
         output='screen',
         remappings=[
-        ('cmd_vel', '/diff_cont/cmd_vel'),
+         ('/cmd_vel', '/diff_cont/cmd_vel'),
+         ('/odom', '/diff_cont/odom'),
         ],
+    )
+
+    joint_broad_spawner = TimerAction(
+        period=5.0,
+        actions=[
+            Node(
+                package='controller_manager',
+                executable='spawner',
+                arguments=['joint_broad'],
+            )
+        ]
+    )
+
+    diff_drive_spawner = TimerAction(
+        period=7.0,
+        actions=[
+            Node(
+                package='controller_manager',
+                executable='spawner',
+                arguments=['diff_cont'],
+            )
+        ]
+    )
+
+
+    compressed_image_node = Node(
+        package='image_transport',
+        executable='republish',
+        arguments=[
+            'raw',
+            'compressed'
+        ],
+        remappings=[
+            ('in', '/camera/image_raw'),
+            ('out/compressed', '/camera/image_raw/compressed')
+        ],
+        output='screen'
     )
 
     #create an empty launch description object
@@ -119,5 +173,9 @@ def generate_launch_description():
     launchDescriptionObject.add_action(nodeRobotStatePublisher)
     launchDescriptionObject.add_action(start_gazebo_ros_bridge_cmd)
     launchDescriptionObject.add_action(ros_gz_image_bridge)
-    launchDescriptionObject.add_action(TimerAction(period=4.0, actions=[twist_controller_node]))
+    launchDescriptionObject.add_action(diff_drive_spawner)
+    launchDescriptionObject.add_action(joint_broad_spawner)
+    #launchDescriptionObject.add_action(compressed_image_node)
+    #launchDescriptionObject.add_action(TimerAction(period=9.0, actions=[twist_controller_node]))
+    launchDescriptionObject.add_action(TimerAction(period=9.0, actions=[pure_pursuit_node]))
     return launchDescriptionObject

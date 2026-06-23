@@ -36,9 +36,11 @@ setup(
     entry_points={
         'console_scripts': [
             'image_processor=mobile_robot.image_processor:main',
-            'twist_controller=mobile_robot.twist_controller:main',
+            #'twist_controller=mobile_robot.twist_controller:main', #swapped for pure pursuit
+            'pure_pursuit=mobile_robot.pure_pursuit:main',
             'hsv_tuner_node=mobile_robot.hsv_tuner_node:main',
             'start_stop=mobile_robot.start_stop:main'
+
         ],
     },
 )

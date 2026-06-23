@@ -65,7 +65,7 @@ class TwistController(Node):
         self._visible_count = 0
         self._last_error_t  = self.get_clock().now()
         self._last_obs_t    = self.get_clock().now()
-        self._enabled       = False  # safety default: starts disabled
+        self._enabled       = True  # 
 
         # --- Subscribers ---
         self._error_sub = self.create_subscription(

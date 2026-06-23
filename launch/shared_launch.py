@@ -43,31 +43,31 @@ def generate_launch_description():
     )
 
     # Update the default to the compressed topic
-    camera_topic_arg = DeclareLaunchArgument(
-        'camera_topic',
-        default_value='/camera/image_raw/compressed',
-        description='Input compressed camera topic'
-    )
-    processed_topic_arg = DeclareLaunchArgument(
-        'processed_topic',
-        default_value='/camera_processed',
-        description='Output processed image topic'
-    )
+    # camera_topic_arg = DeclareLaunchArgument(
+    #     'camera_topic',
+    #     default_value='/camera/image_raw/compressed',
+    #     description='Input compressed camera topic'
+    # )
+    # processed_topic_arg = DeclareLaunchArgument(
+    #     'processed_topic',
+    #     default_value='/camera_processed',
+    #     description='Output processed image topic'
+    # )
 
-    camera_processor_node = Node(
-        package='mobile_robot',
-        executable='image_processor',
-        name='image_processor',
-        output='screen',
-        # parameters=[{
-        #     'camera_topic': LaunchConfiguration('camera_topic'),
-        #     'processed_topic': LaunchConfiguration('processed_topic'),
-        # }],
-        # remappings=[
-        #     ('camera/image_raw/compressed', LaunchConfiguration('camera_topic')),
-        #     ('/camera_processed',           LaunchConfiguration('processed_topic')),
-        # ]
-    )
+    # camera_processor_node = Node(
+    #     package='mobile_robot',
+    #     executable='image_processor',
+    #     name='image_processor',
+    #     output='screen',
+    #     # parameters=[{
+    #     #     'camera_topic': LaunchConfiguration('camera_topic'),
+    #     #     'processed_topic': LaunchConfiguration('processed_topic'),
+    #     # }],
+    #     # remappings=[
+    #     #     ('camera/image_raw/compressed', LaunchConfiguration('camera_topic')),
+    #     #     ('/camera_processed',           LaunchConfiguration('processed_topic')),
+    #     # ]
+    # )
     # HSV_tuner_node = Node(
     #     package='mobile_robot',
     #     executable='hsv_tuner_node',
@@ -95,15 +95,15 @@ def generate_launch_description():
     #     arguments=['joint_broad'],
     # )
 
-    # IPM_launch = IncludeLaunchDescription(
-    #     PythonLaunchDescriptionSource(
-    #         os.path.join(
-    #             get_package_share_directory('robot_vision'),
-    #             'launch',
-    #             'extract_lines.launch.py'
-    #         )
-    #     )
-    # )
+    IPM_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(
+                get_package_share_directory('robot_vision'),
+                'launch',
+                'demonstrate_track_outlines.launch.py'
+            )
+        )
+    )
 
     # rviz_node = Node(
     #     package='rviz2',
@@ -121,13 +121,13 @@ def generate_launch_description():
     # )
 
     return LaunchDescription([
-        camera_topic_arg,
-        processed_topic_arg,
-        camera_processor_node,
+        #camera_topic_arg,
+        #processed_topic_arg,
+        #camera_processor_node,
         #TimerAction(period=4.0, actions=[HSV_tuner_node]),
         
-        # IPM_launch,
-        # rviz_node,
+        IPM_launch,
+        #rviz_node,
         #rqt_image_view_node,
         #controller_manager_node,
         #TimerAction(period=4.0, actions=[diff_drive_spawner]),
