@@ -76,6 +76,31 @@ class ImageProcessor(Node):
         self.declare_parameter('hsv_lower_red2', list(DEFAULT_HSV_LOWER_RED2))
         self.declare_parameter('hsv_upper_red2', list(DEFAULT_HSV_UPPER_RED2))
 
+        # -------Undistort the image using camera intrinsics from calibration------- #
+        self.K = np.array([
+            [216.51078, -0.92533, 319.68753],
+            [0.0,       218.64979, 238.17170],
+            [0.0,       0.0,       1.0]
+        ], dtype=np.float64)
+
+        self.D = np.array([
+            0.248201,
+        -1.308089,
+            1.614096,
+        -0.372616
+        ], dtype=np.float64)
+
+        self.image_size = (640, 480)
+
+        self.map1, self.map2 = cv2.fisheye.initUndistortRectifyMap(
+            self.K,
+            self.D,
+            np.eye(3),
+            self.K,
+            self.image_size,
+            cv2.CV_16SC2
+        )
+        # ----------------------------------------------------------------------- #
 
         # Only look at the bottom fraction of the frame — the track marking
         # is usually at the bottom of the camera view, and cropping reduces
@@ -100,7 +125,7 @@ class ImageProcessor(Node):
         # what camera drivers typically publish with.
         self._image_sub = self.create_subscription(
             CompressedImage,
-            'image_raw/compressed', #USE FOR REAL
+            'image_undistorted/compressed', #USE FOR REAL
             #'camera/image_raw/compressed', #USE FOR SIM
             self._image_callback,
             QoSPresetProfiles.SENSOR_DATA.value,
@@ -125,8 +150,16 @@ class ImageProcessor(Node):
             'debug/mask_image',
             10,
         )
+        self._yellow_mask_pub = self.create_publisher(Image, '/vision/hsv_mask/yellow', 10)
+        self._blue_mask_pub = self.create_publisher(Image, '/vision/hsv_mask/blue', 10)
         self._obstacle_size_pub = self.create_publisher(Float32, 'obstacle_size', 10)
         self.get_logger().info('image_processor started — waiting for images')
+
+
+    def _publish_colour_outputs(self, mask, header, mask_pub):
+        mask_msg = self._bridge.cv2_to_imgmsg(mask, encoding='mono8')
+        mask_msg.header = header
+        mask_pub.publish(mask_msg)
 
     # -----------------------------------------------------------------------
     # Main callback
@@ -137,6 +170,15 @@ class ImageProcessor(Node):
         except cv_bridge.CvBridgeError as e:
             self.get_logger().error(f'cv_bridge error: {e}')
             return
+        
+        # Undistort the image using precomputed maps from camera calibration
+        # bgr = cv2.remap(
+        #     bgr,
+        #     self.map1,
+        #     self.map2,
+        #     interpolation=cv2.INTER_LINEAR,
+        #     borderMode=cv2.BORDER_CONSTANT
+        # )
  
         roi_fraction = self.get_parameter('roi_fraction').value
         h, w = bgr.shape[:2]
@@ -161,6 +203,18 @@ class ImageProcessor(Node):
  
         yellow_mask = make_mask('hsv_lower_yellow', 'hsv_upper_yellow')
         blue_mask   = make_mask('hsv_lower_blue',   'hsv_upper_blue')
+
+        self._publish_colour_outputs(
+            yellow_mask,
+            msg.header,
+            self._yellow_mask_pub,
+        )
+
+        self._publish_colour_outputs(
+            blue_mask,
+            msg.header,
+            self._blue_mask_pub,
+        )
  
         # --- Obstacle mask (red wraps around hue, so combine two ranges) ---
         # lo1 = np.array(self.get_parameter('hsv_lower_red1').value, dtype=np.uint8)

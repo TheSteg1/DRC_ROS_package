@@ -5,6 +5,10 @@ import math
 import rclpy
 from rclpy.node import Node
 
+from rclpy.qos import QoSPresetProfiles
+
+from std_msgs.msg import Float32, Bool
+
 from nav_msgs.msg import Path, Odometry
 from geometry_msgs.msg import TwistStamped, Point, PointStamped
 from visualization_msgs.msg import Marker
@@ -33,12 +37,20 @@ class PurePursuitNode(Node):
         self.path_received = False
         self.odom_received = False
 
+        self._enabled       = False #can set to true for SIM 
+
         # Subscribers
         self.path_sub = self.create_subscription(
             Path, '/map/centerline_path', self.path_callback, 10)
 
         self.odom_sub = self.create_subscription(
             Odometry, '/odom', self.odom_callback, 20)
+
+        self._enable_sub = self.create_subscription(
+            Bool, 'enable_control',
+            self._enable_callback,
+            QoSPresetProfiles.SYSTEM_DEFAULT.value,
+        )
 
         # Publisher
         self.cmd_pub = self.create_publisher(
@@ -54,6 +66,16 @@ class PurePursuitNode(Node):
     # ------------------------------------------------------------------
     # Callbacks
     # ------------------------------------------------------------------
+    def _enable_callback(self, msg: Bool):
+        if msg.data != self._enabled:
+            self.get_logger().info(
+                f"Control {'ENABLED' if msg.data else 'DISABLED'} via enable_control topic"
+            )
+        self._enabled = msg.data
+        if not self._enabled:
+            # Immediately publish a stop the moment we're disabled, rather
+            # than waiting for the next control loop tick.
+            self._publish(0.0, 0.0)
 
     def path_callback(self, msg: Path):
         self.current_path = msg
@@ -140,6 +162,11 @@ class PurePursuitNode(Node):
     # ------------------------------------------------------------------
 
     def control_loop(self):
+        # Gate everything on the enable flag first — this is the highest
+        # priority behaviour of all, above even AVOID.
+        if not self._enabled:
+            return
+
         if not self.path_received or not self.odom_received:
             return
 

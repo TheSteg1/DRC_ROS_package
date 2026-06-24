@@ -53,21 +53,26 @@ def generate_launch_description():
     #     default_value='/camera_processed',
     #     description='Output processed image topic'
     # )
-
-    # camera_processor_node = Node(
-    #     package='mobile_robot',
-    #     executable='image_processor',
-    #     name='image_processor',
+    # distortion_tuner_node = Node(
+    #     package='robot_vision',
+    #     executable='distortion_tuner',
+    #     name='distortion_tuner',
     #     output='screen',
-    #     # parameters=[{
-    #     #     'camera_topic': LaunchConfiguration('camera_topic'),
-    #     #     'processed_topic': LaunchConfiguration('processed_topic'),
-    #     # }],
-    #     # remappings=[
-    #     #     ('camera/image_raw/compressed', LaunchConfiguration('camera_topic')),
-    #     #     ('/camera_processed',           LaunchConfiguration('processed_topic')),
-    #     # ]
     # )
+    camera_processor_node = Node(
+        package='mobile_robot',
+        executable='image_processor',
+        name='image_processor',
+        output='screen',
+        # parameters=[{
+        #     'camera_topic': LaunchConfiguration('camera_topic'),
+        #     'processed_topic': LaunchConfiguration('processed_topic'),
+        # }],
+        # remappings=[
+        #     ('camera/image_raw/compressed', LaunchConfiguration('camera_topic')),
+        #     ('/camera_processed',           LaunchConfiguration('processed_topic')),
+        # ]
+    )
     # HSV_tuner_node = Node(
     #     package='mobile_robot',
     #     executable='hsv_tuner_node',
@@ -123,7 +128,8 @@ def generate_launch_description():
     return LaunchDescription([
         #camera_topic_arg,
         #processed_topic_arg,
-        #camera_processor_node,
+        #distortion_tuner_node,
+        camera_processor_node,
         #TimerAction(period=4.0, actions=[HSV_tuner_node]),
         
         IPM_launch,
