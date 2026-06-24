@@ -23,9 +23,9 @@ class PurePursuitNode(Node):
 
         # Parameters
         self.lookahead_distance = self.declare_parameter(
-            'lookahead_distance', 0.1).value
+            'lookahead_distance', 0.3).value
         self.max_linear_vel = self.declare_parameter(
-            'max_linear_velocity', 0.3).value
+            'max_linear_velocity', 0.5).value
         self.max_angular_vel = self.declare_parameter(
             'max_angular_velocity', 0.5).value
         self.goal_tolerance = self.declare_parameter(
@@ -75,7 +75,12 @@ class PurePursuitNode(Node):
         if not self._enabled:
             # Immediately publish a stop the moment we're disabled, rather
             # than waiting for the next control loop tick.
-            self._publish(0.0, 0.0)
+            cmd = TwistStamped()
+            cmd.header.stamp = self.get_clock().now().to_msg()
+            cmd.header.frame_id = 'base_link'
+            cmd.twist.linear.x = 0.0
+            cmd.twist.angular.z = 0.0
+            self.cmd_pub.publish(cmd)
 
     def path_callback(self, msg: Path):
         self.current_path = msg
@@ -165,7 +170,14 @@ class PurePursuitNode(Node):
         # Gate everything on the enable flag first — this is the highest
         # priority behaviour of all, above even AVOID.
         if not self._enabled:
+            cmd = TwistStamped()
+            cmd.header.stamp = self.get_clock().now().to_msg()
+            cmd.header.frame_id = 'base_link'
+            cmd.twist.linear.x = 0.0
+            cmd.twist.angular.z = 0.0
+            self.cmd_pub.publish(cmd)
             return
+
 
         if not self.path_received or not self.odom_received:
             return

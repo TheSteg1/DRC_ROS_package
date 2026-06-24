@@ -125,7 +125,7 @@ class ImageProcessor(Node):
         # what camera drivers typically publish with.
         self._image_sub = self.create_subscription(
             CompressedImage,
-            'image_undistorted/compressed', #USE FOR REAL
+            'image_raw/compressed', #USE FOR REAL
             #'camera/image_raw/compressed', #USE FOR SIM
             self._image_callback,
             QoSPresetProfiles.SENSOR_DATA.value,
