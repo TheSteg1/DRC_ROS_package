@@ -1,0 +1,13 @@
+image_processor:
+  ros__parameters:
+    hsv_lower_blue: [80, 131, 77]
+    hsv_upper_blue: [125, 255, 172]
+    hsv_lower_yellow: [28, 70, 98]
+    hsv_upper_yellow: [58, 156, 155]
+
+    roi_percentage: 0.4
+
+twist_controller:
+  ros__parameters:
+    CONFIG_DEBUG: true
+    bang_bang_inset: 0.25

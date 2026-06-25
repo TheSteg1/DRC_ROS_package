@@ -39,8 +39,9 @@ setup(
             #'twist_controller=mobile_robot.twist_controller:main', #swapped for pure pursuit
             'pure_pursuit=mobile_robot.pure_pursuit:main',
             'hsv_tuner_node=mobile_robot.hsv_tuner_node:main',
-            'start_stop=mobile_robot.start_stop:main'
-
+            'start_stop=mobile_robot.start_stop:main',
+            'simple_image_processor=mobile_robot.simple_image_processor:main',
+            'simple_twist_controller=mobile_robot.simple_twist_controller:main',
         ],
     },
 )
