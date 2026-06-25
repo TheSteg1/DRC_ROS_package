@@ -23,6 +23,13 @@ def generate_launch_description():
     #create an empty launch description object
     launchDescriptionObject = LaunchDescription()
 
+    simple_image_processor = Node(
+        package='mobile_robot',
+        executable='simple_image_processor',
+        name='simple_twist_controller',
+        output='screen',
+    )
+
     simple_twist_controller_node = Node(
         package='mobile_robot',
         executable='simple_twist_controller',
@@ -31,7 +38,8 @@ def generate_launch_description():
     )
     
     #add shared launch
-    launchDescriptionObject.add_action(sharedLaunch)
-    launchDescriptionObject.add_action(TimerAction(period=4.0, actions=[simple_twist_controller_node]))
+    # launchDescriptionObject.add_action(sharedLaunch)
+    launchDescriptionObject.add_action(simple_image_processor)
+    # launchDescriptionObject.add_action(TimerAction(period=4.0, actions=[simple_twist_controller_node]))
 
     return launchDescriptionObject

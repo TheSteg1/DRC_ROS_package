@@ -27,6 +27,8 @@ class ImageProcessor(Node):
         self.declare_parameter('hsv_lower_blue', [80, 0, 65])
         self.declare_parameter('hsv_upper_blue', [115, 255, 165])
 
+        self.CONFIG_DEBUG = False
+
 
         self.image_size = (640, 480)
         
@@ -40,7 +42,7 @@ class ImageProcessor(Node):
         # what camera drivers typically publish with.
         self._image_sub = self.create_subscription(
             CompressedImage,
-            'image_raw/compressed', #USE FOR REAL
+            '/image_raw/compressed', #USE FOR REAL
             #'camera/image_raw/compressed', #USE FOR SIM
             self._image_callback,
             QoSPresetProfiles.SENSOR_DATA.value,
@@ -67,10 +69,15 @@ class ImageProcessor(Node):
     # -----------------------------------------------------------------------
     def _image_callback(self, msg: CompressedImage):
         try:
+            if self.CONFIG_DEBUG:
+                self.get_logger().info("Trying to convert")
             bgr = self._bridge.compressed_imgmsg_to_cv2(msg, desired_encoding='bgr8')
         except cv_bridge.CvBridgeError as e:
-            self.get_logger().error(f'cv_bridge error: {e}')
+            if self.CONFIG_DEBUG:
+                self.get_logger().error(f'cv_bridge error: {e}')
             return
+        if self.CONFIG_DEBUG:
+            self.get_logger().info("Image Processor: image callback")
  
         hsv = cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV)
 

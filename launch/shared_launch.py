@@ -100,15 +100,15 @@ def generate_launch_description():
     #     arguments=['joint_broad'],
     # )
 
-    IPM_launch = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            os.path.join(
-                get_package_share_directory('robot_vision'),
-                'launch',
-                'demonstrate_track_outlines.launch.py'
-            )
-        )
-    )
+    # IPM_launch = IncludeLaunchDescription(
+    #     PythonLaunchDescriptionSource(
+    #         os.path.join(
+    #             get_package_share_directory('robot_vision'),
+    #             'launch',
+    #             'demonstrate_track_outlines.launch.py'
+    #         )
+    #     )
+    # )
 
     # rviz_node = Node(
     #     package='rviz2',
@@ -132,7 +132,7 @@ def generate_launch_description():
         camera_processor_node,
         #TimerAction(period=4.0, actions=[HSV_tuner_node]),
         
-        IPM_launch,
+        #IPM_launch,
         #rviz_node,
         #rqt_image_view_node,
         #controller_manager_node,

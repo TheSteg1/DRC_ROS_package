@@ -86,6 +86,11 @@ class TwistController(Node):
     
     """
     def control_loop(self, blue_mask, yellow_mask):
+        # TODO: make it not spam instructions to not overwhelm robot
+
+        if not self._enabled:
+            return
+        self.get_logger().info("Control loop")
         blue_mask_cv   = self._bridge.imgmsg_to_cv2(blue_mask,   desired_encoding='mono8')
         yellow_mask_cv = self._bridge.imgmsg_to_cv2(yellow_mask, desired_encoding='mono8')
 
@@ -100,11 +105,12 @@ class TwistController(Node):
 
         if left_most_blue_x is not None and left_most_blue_x < blue_bang_bang_line:
             self.get_logger().info("BANG LEFT")
-            self.publish_movement(linear_x=0.0, angular_z=0.5)
+            self.publish_movement(linear_x=0.0, angular_z=0.05)
         elif right_most_yellow_x is not None and right_most_yellow_x > yellow_bang_bang_line:
             self.get_logger().info("BANG RIGHT")
-            self.publish_movement(linear_x=0.0, angular_z=-0.5)
+            self.publish_movement(linear_x=0.0, angular_z=-0.05)
         else:
+            self.get_logger().info("GO STRAIGHT")
             self.publish_movement(linear_x=0.1, angular_z=0.0)
         
         if self.CONFIG_DEBUG:
@@ -145,7 +151,7 @@ class TwistController(Node):
         if not self._enabled:
             # Immediately publish a stop the moment we're disabled, rather
             # than waiting for the next control loop tick.
-            self._publish(0.0, 0.0)
+            self.publish_movement(0.0, 0.0)
 
     def publish_movement(self, linear_x: float, angular_z: float):
         msg = TwistStamped()
