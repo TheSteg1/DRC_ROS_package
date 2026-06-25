@@ -18,7 +18,7 @@ import numpy as np
 class ImageProcessor(Node):
 
     def __init__(self):
-        super().__init__('image_processor')
+        super().__init__('simple_image_processor')
 
         # --- Parameters (tunable at launch or runtime via ros2 param set) ---
         # OpenCV HSV ranges: H: 0-179, S: 0-255, V: 0-255
@@ -27,7 +27,8 @@ class ImageProcessor(Node):
         self.declare_parameter('hsv_lower_blue', [80, 0, 65])
         self.declare_parameter('hsv_upper_blue', [115, 255, 165])
 
-        self.CONFIG_DEBUG = False
+        self.declare_parameter('CONFIG_DEBUG', False)
+        self.CONFIG_DEBUG = self.get_parameter('CONFIG_DEBUG').value
 
 
         self.image_size = (640, 480)
@@ -38,12 +39,11 @@ class ImageProcessor(Node):
         self._bridge = cv_bridge.CvBridge()
 
         # --- Subscribers ---
-        # Use SENSOR_DATA QoS profile (best-effort, small queue) — matches
-        # what camera drivers typically publish with.
+
+        self.declare_parameter('image_topic', '/image_raw/compressed')
         self._image_sub = self.create_subscription(
             CompressedImage,
-            '/image_raw/compressed', #USE FOR REAL
-            #'camera/image_raw/compressed', #USE FOR SIM
+            self.get_parameter('image_topic').value,
             self._image_callback,
             QoSPresetProfiles.SENSOR_DATA.value,
         )
@@ -56,7 +56,7 @@ class ImageProcessor(Node):
         self._blue_mask_pub = self.create_publisher(Image, '/vision/hsv_mask/blue', 10)
         self.roi_yellow = self.create_publisher(Image, '/vision/roi/yellow', 10)
         self.roi_blue = self.create_publisher(Image, '/vision/roi/blue', 10)
-        self.get_logger().info('image_processor started — waiting for images')
+        self.get_logger().info('image_processor started — waiting for images on topic: ' + self.get_parameter('image_topic').value)
 
 
     def _publish_colour_outputs(self, mask, header, mask_pub):

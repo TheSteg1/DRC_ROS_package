@@ -129,7 +129,7 @@ def generate_launch_description():
         #camera_topic_arg,
         #processed_topic_arg,
         #distortion_tuner_node,
-        camera_processor_node,
+        # camera_processor_node,
         #TimerAction(period=4.0, actions=[HSV_tuner_node]),
         
         #IPM_launch,

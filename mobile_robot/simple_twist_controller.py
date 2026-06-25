@@ -8,6 +8,7 @@ from rclpy.qos import QoSPresetProfiles
 
 import numpy as np
 import cv2
+import time
 import message_filters
 from cv_bridge import CvBridge
 
@@ -19,13 +20,14 @@ from sensor_msgs.msg import Image
 class TwistController(Node):
 
     def __init__(self):
-        super().__init__('twist_controller')
+        super().__init__('simple_twist_controller')
 
         ##### CONTROL CONFIG
         self.declare_parameter('bang_bang_inset', 0.1)
         self.bang_bang_inset = self.get_parameter('bang_bang_inset').value
-
-
+        
+        self.declare_parameter('turn_time', 0.1)
+        self.turn_time = self.get_parameter('turn_time').value
 
         # Watchdog: if no message arrives within this many seconds, stop.
         self.declare_parameter('watchdog_timeout', 0.5)
@@ -49,7 +51,7 @@ class TwistController(Node):
         self.ts = message_filters.ApproximateTimeSynchronizer(
             [self.blue_sub, self.yellow_sub], queue_size=10, slop=0.1
         )
-        self.ts.registerCallback(self.control_loop)
+        self.ts.registerCallback(self.monitor_images_loop)
 
         # --- Publisher ---
         self._cmd_pub = self.create_publisher(
@@ -63,13 +65,21 @@ class TwistController(Node):
         
         self.declare_parameter('CONFIG_DEBUG', False)
         self.CONFIG_DEBUG = self.get_parameter('CONFIG_DEBUG').value
-        self.debug_decision_making = self.create_publisher(
+        
+        self.debug_decision_making_pub = self.create_publisher(
             Image,
             "/debug/decision_making",
             QoSPresetProfiles.SYSTEM_DEFAULT.value,
         )
         
         
+        ### State machine stuff
+        
+        # create a timer that calls back state_machine 
+        self.state_machine_timer = self.create_timer(0.1, self.state_machine) # 10 Hz
+        
+        self.state = "GO_STRAIGHT"  # initial state
+        self.state_event_time = time.monotonic()
 
         self.get_logger().info(
             'twist_controller started — DISABLED by default. '
@@ -85,12 +95,8 @@ class TwistController(Node):
 
     
     """
-    def control_loop(self, blue_mask, yellow_mask):
-        # TODO: make it not spam instructions to not overwhelm robot
-
-        if not self._enabled:
-            return
-        self.get_logger().info("Control loop")
+    def monitor_images_loop(self, blue_mask, yellow_mask):
+        
         blue_mask_cv   = self._bridge.imgmsg_to_cv2(blue_mask,   desired_encoding='mono8')
         yellow_mask_cv = self._bridge.imgmsg_to_cv2(yellow_mask, desired_encoding='mono8')
 
@@ -102,16 +108,6 @@ class TwistController(Node):
 
         left_most_blue_x    = int(blue_x_indices.min())   if blue_x_indices.size   > 0 else None
         right_most_yellow_x = int(yellow_x_indices.max()) if yellow_x_indices.size > 0 else None    
-
-        if left_most_blue_x is not None and left_most_blue_x < blue_bang_bang_line:
-            self.get_logger().info("BANG LEFT")
-            self.publish_movement(linear_x=0.0, angular_z=0.05)
-        elif right_most_yellow_x is not None and right_most_yellow_x > yellow_bang_bang_line:
-            self.get_logger().info("BANG RIGHT")
-            self.publish_movement(linear_x=0.0, angular_z=-0.05)
-        else:
-            self.get_logger().info("GO STRAIGHT")
-            self.publish_movement(linear_x=0.1, angular_z=0.0)
         
         if self.CONFIG_DEBUG:
             # Combine masks in grayscale, then convert to color so line colors are visible.
@@ -123,12 +119,59 @@ class TwistController(Node):
             cv2.line(combined_bgr, (blue_bang_bang_line, 0), (blue_bang_bang_line, h), (255, 0, 0), 4)
             
             # put line on left most and right most
-            cv2.line(combined_bgr, (left_most_blue_x, 0), (left_most_blue_x, h), (0, 0, 255), 3)
-            cv2.line(combined_bgr, (right_most_yellow_x, 0), (right_most_yellow_x, h), (0, 0, 255), 3)
+            
+            if left_most_blue_x is not None:
+                cv2.line(combined_bgr, (left_most_blue_x, 0), (left_most_blue_x, h), (0, 0, 255), 3)
+            if right_most_yellow_x is not None:
+                cv2.line(combined_bgr, (right_most_yellow_x, 0), (right_most_yellow_x, h), (0, 0, 255), 3)
 
             debug_msg = self._bridge.cv2_to_imgmsg(combined_bgr, encoding='bgr8')
             debug_msg.header = blue_mask.header
-            self.debug_decision_making.publish(debug_msg)
+            self.debug_decision_making_pub.publish(debug_msg)
+            
+        # Only set new bang state if we're in a stable/receptive state
+        if self.state in (None, "GO_STRAIGHT", "GO_STRAIGHT_SETTLING"):   
+            if left_most_blue_x is not None and left_most_blue_x < blue_bang_bang_line:
+                self.state = "BANG_LEFT"
+            
+            elif right_most_yellow_x is not None and right_most_yellow_x > yellow_bang_bang_line:
+                self.state = "BANG_RIGHT"
+                                
+    def state_machine(self):
+        
+        if not self._enabled:
+            return
+        
+        now = time.monotonic()
+        
+        match self.state:
+            case "BANG_LEFT":
+                self.get_logger().info("BANG LEFT")
+                self.publish_movement(linear_x=0.0, angular_z=0.05)
+                self.state_event_time = now + self.turn_time
+                self.state = "BANG_LEFT_SETTLING"
+                
+            case "BANG_LEFT_SETTLING": 
+                if now >= self.state_event_time:
+                    self.state = "GO_STRAIGHT"
+            
+            case "BANG_RIGHT":
+                self.get_logger().info("BANG RIGHT")
+                self.publish_movement(linear_x=0.0, angular_z=-0.05)
+                self.state_event_time = now + self.turn_time
+                self.state = "BANG_RIGHT_SETTLING"
+                
+            case "BANG_RIGHT_SETTLING":
+                if now >= self.state_event_time:
+                    self.state = "GO_STRAIGHT"
+                    
+            case "GO_STRAIGHT":
+                self.get_logger().info("GO STRAIGHT")
+                self.publish_movement(linear_x=0.1, angular_z=0.0)
+                self.state = "GO_STRAIGHT_SETTLING"
+                
+            case "GO_STRAIGHT_SETTLING":
+                pass                        
                 
     def get_bang_bang_lines(self, blue_mask):
         # get number of pixels in each mask (blue_mask)

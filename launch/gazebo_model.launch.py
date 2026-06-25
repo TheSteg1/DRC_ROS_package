@@ -98,27 +98,6 @@ def generate_launch_description():
         arguments=["/camera/image_raw"]
     )
 
-    # twist_controller_node = Node(
-    #     package='mobile_robot',
-    #     executable='twist_controller',
-    #     name='twist_controller',
-    #     output='screen',
-    #     remappings=[
-    #     ('/cmd_vel', '/diff_cont/cmd_vel'),
-    #     ],
-    # )
-
-    pure_pursuit_node = Node(
-        package='mobile_robot',
-        executable='pure_pursuit',
-        name='pure_pursuit',
-        output='screen',
-        remappings=[
-         ('/cmd_vel', '/diff_cont/cmd_vel'),
-         ('/odom', '/diff_cont/odom'),
-        ],
-    )
-
     joint_broad_spawner = TimerAction(
         period=5.0,
         actions=[
@@ -177,5 +156,5 @@ def generate_launch_description():
     launchDescriptionObject.add_action(joint_broad_spawner)
     #launchDescriptionObject.add_action(compressed_image_node)
     #launchDescriptionObject.add_action(TimerAction(period=9.0, actions=[twist_controller_node]))
-    launchDescriptionObject.add_action(TimerAction(period=9.0, actions=[pure_pursuit_node]))
+    #launchDescriptionObject.add_action(TimerAction(period=9.0, actions=[pure_pursuit_node]))
     return launchDescriptionObject

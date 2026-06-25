@@ -26,20 +26,22 @@ def generate_launch_description():
     simple_image_processor = Node(
         package='mobile_robot',
         executable='simple_image_processor',
-        name='simple_twist_controller',
+        name='simple_image_processor',
         output='screen',
+        parameters=[os.path.join(get_package_share_directory(namePackage), 'parameters', 'testing_simple_image_processor.yaml')]
     )
 
     simple_twist_controller_node = Node(
         package='mobile_robot',
         executable='simple_twist_controller',
         name='simple_twist_controller',
-        output='screen',
+        parameters=[os.path.join(get_package_share_directory(namePackage), 'parameters', 'testing_simple_image_processor.yaml')],
+        remappings=[
+            ('/cmd_vel', '/diff_cont/cmd_vel'), # REAL CHANGE HERE
+        ],
     )
     
-    #add shared launch
-    # launchDescriptionObject.add_action(sharedLaunch)
     launchDescriptionObject.add_action(simple_image_processor)
-    # launchDescriptionObject.add_action(TimerAction(period=4.0, actions=[simple_twist_controller_node]))
+    launchDescriptionObject.add_action(TimerAction(period=4.0, actions=[simple_twist_controller_node]))
 
     return launchDescriptionObject

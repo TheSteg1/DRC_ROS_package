@@ -1,13 +1,31 @@
-image_processor:
+simple_image_processor:
   ros__parameters:
-    hsv_lower_blue: [80, 131, 77]
-    hsv_upper_blue: [125, 255, 172]
-    hsv_lower_yellow: [28, 70, 98]
-    hsv_upper_yellow: [58, 156, 155]
+    # tuner image
+    # hsv_lower_blue: [80, 131, 77]
+    # hsv_upper_blue: [125, 255, 172]
+    # hsv_lower_yellow: [28, 70, 98]
+    # hsv_upper_yellow: [58, 156, 155]
 
+    # gazebo_simulator
+    hsv_lower_blue: [70, 60, 0]
+    hsv_upper_blue: [179, 255, 255]
+    hsv_lower_yellow: [0, 15, 169]
+    hsv_upper_yellow: [37, 255, 232]
     roi_percentage: 0.4
+    image_topic: '/camera/image_raw/compressed'
 
-twist_controller:
+
+    # real life NOTE YOU MUST delete REMAPPING IN simple_launch.launch.py TO use /cmd_vel
+    # hsv_lower_blue: [80, 0, 65]
+    # hsv_upper_blue: [115, 255, 165]
+    # hsv_lower_yellow: [30, 65, 100]
+    # hsv_upper_yellow: [46, 255, 255]
+    # roi_percentage: 0.4
+    # image_topic: '/image_raw/compressed' # simulator
+
+    CONFIG_DEBUG: False
+
+simple_twist_controller:
   ros__parameters:
-    CONFIG_DEBUG: true
-    bang_bang_inset: 0.25
+    CONFIG_DEBUG: True
+    bang_bang_inset: 0.35
