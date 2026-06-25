@@ -7,11 +7,13 @@ simple_image_processor:
     # hsv_upper_yellow: [58, 156, 155]
 
     # gazebo_simulator
+    #NOTE: to get simulator to run, had to run: ros2 run controller_manager spawner diff_cont
+    # check with ros2 node list controllers
     hsv_lower_blue: [70, 60, 0]
     hsv_upper_blue: [179, 255, 255]
     hsv_lower_yellow: [0, 15, 169]
     hsv_upper_yellow: [37, 255, 232]
-    roi_percentage: 0.4
+    roi_percentage: 0.38
     image_topic: '/camera/image_raw/compressed'
 
 
@@ -28,4 +30,7 @@ simple_image_processor:
 simple_twist_controller:
   ros__parameters:
     CONFIG_DEBUG: True
-    bang_bang_inset: 0.35
+    bang_bang_inset: 0.3
+    turn_time: 0.5
+    angular_speed: 0.5
+    forward_speed: 0.5

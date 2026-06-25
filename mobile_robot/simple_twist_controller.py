@@ -26,6 +26,12 @@ class TwistController(Node):
         self.declare_parameter('bang_bang_inset', 0.1)
         self.bang_bang_inset = self.get_parameter('bang_bang_inset').value
         
+        self.declare_parameter('forward_speed', 0.1)
+        self.forward_speed = self.get_parameter('forward_speed').value
+        
+        self.declare_parameter('angular_speed', 0.05)
+        self.angular_speed = self.get_parameter('angular_speed').value
+        
         self.declare_parameter('turn_time', 0.1)
         self.turn_time = self.get_parameter('turn_time').value
 
@@ -130,15 +136,21 @@ class TwistController(Node):
             self.debug_decision_making_pub.publish(debug_msg)
             
         # Only set new bang state if we're in a stable/receptive state
-        if self.state in (None, "GO_STRAIGHT", "GO_STRAIGHT_SETTLING"):   
+        if self.state in (None, "GO_STRAIGHT", "GO_STRAIGHT_SETTLING", "WAITING"):   
             if left_most_blue_x is not None and left_most_blue_x < blue_bang_bang_line:
                 self.state = "BANG_LEFT"
             
             elif right_most_yellow_x is not None and right_most_yellow_x > yellow_bang_bang_line:
                 self.state = "BANG_RIGHT"
-                                
+            
+            else:
+                self.state = "GO_STRAIGHT"
+           
+    """
+    Method
+    - only goes straight if the next image fulfills straight conditions
+    """                     
     def state_machine(self):
-        
         if not self._enabled:
             return
         
@@ -147,31 +159,37 @@ class TwistController(Node):
         match self.state:
             case "BANG_LEFT":
                 self.get_logger().info("BANG LEFT")
-                self.publish_movement(linear_x=0.0, angular_z=0.05)
+                self.publish_movement(linear_x=0.0, angular_z=self.angular_speed)
                 self.state_event_time = now + self.turn_time
                 self.state = "BANG_LEFT_SETTLING"
                 
             case "BANG_LEFT_SETTLING": 
                 if now >= self.state_event_time:
-                    self.state = "GO_STRAIGHT"
+                    self.publish_movement(linear_x=0.0, angular_z=0.0)
+                    self.state = "WAITING" # wait for next valid image to see if we need to turn again
             
             case "BANG_RIGHT":
                 self.get_logger().info("BANG RIGHT")
-                self.publish_movement(linear_x=0.0, angular_z=-0.05)
+                self.publish_movement(linear_x=0.0, angular_z=-self.angular_speed)
                 self.state_event_time = now + self.turn_time
                 self.state = "BANG_RIGHT_SETTLING"
                 
             case "BANG_RIGHT_SETTLING":
                 if now >= self.state_event_time:
-                    self.state = "GO_STRAIGHT"
+                    self.publish_movement(linear_x=0.0, angular_z=0.0)
+                    self.state = "WAITING" # wait for next valid image to see if we need to turn again
                     
             case "GO_STRAIGHT":
                 self.get_logger().info("GO STRAIGHT")
-                self.publish_movement(linear_x=0.1, angular_z=0.0)
+                self.publish_movement(linear_x=self.forward_speed, angular_z=0.0)
                 self.state = "GO_STRAIGHT_SETTLING"
                 
             case "GO_STRAIGHT_SETTLING":
-                pass                        
+                pass
+            
+            case "WAITING":
+                pass
+                                   
                 
     def get_bang_bang_lines(self, blue_mask):
         # get number of pixels in each mask (blue_mask)
