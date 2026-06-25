@@ -105,7 +105,7 @@ def generate_launch_description():
             os.path.join(
                 get_package_share_directory('robot_vision'),
                 'launch',
-                'demonstrate_track_outlines.launch.py'
+                'do_racing_vision.launch.py'
             )
         )
     )
@@ -117,13 +117,13 @@ def generate_launch_description():
     #     output='screen'
     # )
 
-    # rqt_image_view_node = Node(
-    #     package='rqt_image_view',
-    #     executable='rqt_image_view',
-    #     name='rqt_image_view',
-    #     output='screen',
-    #     arguments=['--ros-args', '--remap', '/image:=/debug/mask_image']
-    # )
+    rqt_image_view_node = Node(
+        package='rqt_image_view',
+        executable='rqt_image_view',
+        name='rqt_image_view',
+        output='screen',
+        arguments=['--ros-args', '--remap', '/image:=/debug/mask_image']
+    )
 
     return LaunchDescription([
         #camera_topic_arg,
@@ -132,9 +132,9 @@ def generate_launch_description():
         camera_processor_node,
         #TimerAction(period=4.0, actions=[HSV_tuner_node]),
         
-        IPM_launch,
+        #IPM_launch,
         #rviz_node,
-        #rqt_image_view_node,
+        rqt_image_view_node,
         #controller_manager_node,
         #TimerAction(period=4.0, actions=[diff_drive_spawner]),
         # TimerAction(period=4.0, actions=[joint_broad_spawner]),

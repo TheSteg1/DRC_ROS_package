@@ -23,26 +23,26 @@ def generate_launch_description():
     #create an empty launch description object
     launchDescriptionObject = LaunchDescription()
 
-    # twist_controller_node = Node(
-    #     package='mobile_robot',
-    #     executable='twist_controller',
-    #     name='twist_controller',
-    #     output='screen',
-    # )
-    
-    pure_pursuit_node = Node(
+    twist_controller_node = Node(
         package='mobile_robot',
-        executable='pure_pursuit',
-        name='pure_pursuit',
+        executable='twist_controller',
+        name='twist_controller',
         output='screen',
-        remappings=[
-         #('/cmd_vel', '/diff_cont/cmd_vel'),
-         ('/odom', '/diffbot_base_controller/odom'),
-        ],
     )
+    
+    # pure_pursuit_node = Node(
+    #     package='mobile_robot',
+    #     executable='pure_pursuit',
+    #     name='pure_pursuit',
+    #     output='screen',
+    #     remappings=[
+    #      #('/cmd_vel', '/diff_cont/cmd_vel'),
+    #      ('/odom', '/diffbot_base_controller/odom'),
+    #     ],
+    # )
     #add shared launch
     launchDescriptionObject.add_action(sharedLaunch)
-    #launchDescriptionObject.add_action(TimerAction(period=4.0, actions=[twist_controller_node]))
-    launchDescriptionObject.add_action(TimerAction(period=4.0, actions=[pure_pursuit_node]))
+    launchDescriptionObject.add_action(TimerAction(period=8.0, actions=[twist_controller_node]))
+    #launchDescriptionObject.add_action(TimerAction(period=4.0, actions=[pure_pursuit_node]))
 
     return launchDescriptionObject

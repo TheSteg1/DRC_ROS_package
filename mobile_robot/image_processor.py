@@ -35,7 +35,7 @@ import numpy as np
 # ---------------------------------------------------------------------------
 DEFAULT_HSV_LOWER_BLUE = (80, 0, 65)   # blue lower bound (H, S, V)
 DEFAULT_HSV_UPPER_BLUE = (115, 255, 165)   # blue upper bound
-DEFAULT_HSV_LOWER_YELLOW = (30, 65, 100)   # yellow lower bound (H, S, V)
+DEFAULT_HSV_LOWER_YELLOW = (30, 40, 100)   # yellow lower bound (H, S, V) #65 S
 DEFAULT_HSV_UPPER_YELLOW = (46, 255, 255)   # yellow upper bound
 
 # Red wraps around H=0/179 in OpenCV, so we need two ranges and OR them.
@@ -105,7 +105,7 @@ class ImageProcessor(Node):
         # Only look at the bottom fraction of the frame — the track marking
         # is usually at the bottom of the camera view, and cropping reduces
         # noise from the environment above the floor.
-        self.declare_parameter('roi_fraction', 0.9)
+        self.declare_parameter('roi_fraction', 0.65)
 
         # Minimum pixel count to trust a detection.  Below this the track
         # is probably not visible and we should hold the last error rather
@@ -115,6 +115,22 @@ class ImageProcessor(Node):
         # Minimum red pixel count to declare an obstacle present.
         # Set this high enough to reject stray red pixels in the environment.
         self.declare_parameter('obstacle_min_pixels', 200)
+
+        # --- Lookahead-fit parameters ---
+        # lookahead_frac: where (vertically, within the ROI mask) we want to
+        # sample each lane's x-position. 0.0 = top of ROI (farthest ahead),
+        # 1.0 = bottom of ROI (closest to the robot). Smaller -> more
+        # anticipatory/smooth on curves; larger -> reacts faster but noisier.
+        self.declare_parameter('lookahead_frac', 0.6)
+
+        # Degree of the polynomial fit along each lane's own principal axis.
+        # 2 is a good default for most curved lane markings.
+        self.declare_parameter('lane_poly_degree', 2)
+
+        # Minimum number of mask pixels required before we trust a curve fit.
+        # Below this we fall back to a plain image-moment centroid for that
+        # lane, same as the original behaviour.
+        self.declare_parameter('min_fit_points', 30)
 
 
         self._bridge = cv_bridge.CvBridge()
@@ -341,14 +357,97 @@ class ImageProcessor(Node):
              if  extent <= max_extent and aspect >= min_aspect: 
                  cv2.drawContours(final_edges, [c], -1, 255, thickness=cv2.FILLED)
         return final_edges
+
+    # -----------------------------------------------------------------------
+    # Lookahead lane-position fitting
+    # -----------------------------------------------------------------------
+    def _order_points_by_principal_axis(self, mask, min_points):
+        """
+        Extract nonzero pixels from `mask` and order them along the lane's
+        own principal axis (via PCA) rather than by image row.
+
+        Ordering by row breaks down on sharp curves, where a single row can
+        contain two different x-positions on the same lane (the curve folds
+        back on itself in y). Ordering by the principal axis stays
+        well-behaved in that case because the parametrization follows the
+        lane's actual direction of travel instead of the image's vertical
+        axis.
+
+        Returns (points_ordered, t_ordered) or None if too few pixels.
+        points_ordered: Nx2 array of (x, y) in mask-local coordinates.
+        t_ordered: 1D array, the signed projection of each point onto the
+            principal axis, sorted ascending (this is "distance along the
+            lane", not real-world distance, but it's monotonic which is
+            all the polynomial fit needs).
+        """
+        ys, xs = np.nonzero(mask)
+        if len(xs) < min_points:
+            return None
+
+        pts = np.column_stack((xs, ys)).astype(np.float64)
+
+        mean = pts.mean(axis=0)
+        centered = pts - mean
+        cov = np.cov(centered.T)
+        eigvals, eigvecs = np.linalg.eigh(cov)
+        principal_axis = eigvecs[:, np.argmax(eigvals)]
+
+        t = centered @ principal_axis
+        order = np.argsort(t)
+        return pts[order], t[order]
+
+    def _lane_x_at_lookahead(self, mask, moments, target_y, poly_degree, min_points):
+        """
+        Estimate this lane's x-position at mask row `target_y`.
+
+        Tries the principal-axis polynomial fit first (handles curves,
+        including sharp ones, well). Falls back to the plain image-moment
+        centroid if there aren't enough pixels to trust a fit — same
+        behaviour as the original implementation in that degraded case.
+
+        Returns a float x-coordinate, or None if neither approach has
+        anything to work with.
+        """
+        ordered = self._order_points_by_principal_axis(mask, min_points)
+
+        if ordered is not None:
+            pts, t = ordered
+            degree = min(poly_degree, len(t) - 1)
+
+            try:
+                x_coeffs = np.polyfit(t, pts[:, 0], degree)
+                y_coeffs = np.polyfit(t, pts[:, 1], degree)
+            except np.linalg.LinAlgError:
+                ordered = None  # fall through to centroid fallback below
+
+        if ordered is not None:
+            t_dense = np.linspace(t.min(), t.max(), 200)
+            y_dense = np.polyval(y_coeffs, t_dense)
+            x_dense = np.polyval(x_coeffs, t_dense)
+
+            idx = np.argmin(np.abs(y_dense - target_y))
+            x_at_lookahead = float(x_dense[idx])
+
+            # Guard against extrapolation swinging the fit outside the
+            # mask entirely (can happen with very sparse / noisy input).
+            width = mask.shape[1]
+            return float(np.clip(x_at_lookahead, 0.0, width - 1))
+
+        # Fallback: not enough pixels to trust a curve fit.
+        if moments['m00'] == 0:
+            return None
+        return moments['m10'] / moments['m00']
+
     # -----------------------------------------------------------------------
     # Error computation
     # -----------------------------------------------------------------------
     def _compute_lane_error(self, yellow_mask: np.ndarray, blue_mask: np.ndarray, image_width: int) -> tuple[float, bool]:
         """
-        Find the centroid of yellow and blue masks, compute their midpoint,
-        and determine how offset that midpoint is from the center of the image.
-        
+        Find each lane's x-position at a lookahead row (via principal-axis
+        polynomial fit — see _lane_x_at_lookahead), compute their midpoint,
+        and determine how offset that midpoint is from the center of the
+        image.
+
         Returns a value in [-1.0, 1.0]:
           +1.0 → midpoint at left edge
           -1.0 → midpoint at right edge
@@ -361,26 +460,39 @@ class ImageProcessor(Node):
 
         if yellow_pixels < min_pixels or blue_pixels < min_pixels:
             if yellow_pixels < min_pixels:
-                self._last_error = -0.08  # bias right if we lose the left lane
+                self._last_error = -0.6  # bias right if we lose the left lane
                 pass
             elif blue_pixels < min_pixels:
-                self._last_error = 0.08   # bias left if we lose the right lane
+                self._last_error = 0.6   # bias left if we lose the right lane
                 pass
             return self._last_error, False, None  # lanes not visible
 
-
-
-        # Find centroids using moments
         yellow_moments = cv2.moments(yellow_mask)
         blue_moments = cv2.moments(blue_mask)
 
-        if yellow_moments['m00'] == 0 or blue_moments['m00'] == 0:
+        if yellow_moments['m00'] == 0 or blue_moments['m00'] ==     0:
             return self._last_error, False, None  # lanes not visible
 
-        yellow_cx = yellow_moments['m10'] / yellow_moments['m00']
-        blue_cx = blue_moments['m10'] / blue_moments['m00']
+        lookahead_frac = self.get_parameter('lookahead_frac').value
+        poly_degree = self.get_parameter('lane_poly_degree').value
+        min_fit_points = self.get_parameter('min_fit_points').value
 
-        # Compute midpoint between the two centroids
+        # Masks are already cropped to the ROI, so the lookahead row is
+        # relative to the mask's own height, not the full camera frame.
+        mask_height = yellow_mask.shape[0]
+        target_y = mask_height * lookahead_frac
+
+        yellow_cx = self._lane_x_at_lookahead(
+            yellow_mask, yellow_moments, target_y, poly_degree, min_fit_points
+        )
+        blue_cx = self._lane_x_at_lookahead(
+            blue_mask, blue_moments, target_y, poly_degree, min_fit_points
+        )
+
+        if yellow_cx is None or blue_cx is None:
+            return self._last_error, False, None
+
+        # Compute midpoint between the two lookahead positions
         midpoint = (yellow_cx + blue_cx) / 2.0
 
         # Determine offset from image center, normalized to [-1, 1]

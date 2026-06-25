@@ -45,8 +45,9 @@ class TwistController(Node):
         self.declare_parameter('avoid_size_threshold', 0.06)  # tune this
 
         # Line-follow behaviour
-        self.declare_parameter('forward_speed', 0.4)   # m/s cruise speed
+        self.declare_parameter('forward_speed', 0.5)   # m/s cruise speed
         self.declare_parameter('follow_kp',     0.4)   # proportional gain
+        
 
         # Obstacle-avoid behaviour
         self.declare_parameter('avoid_threshold', 1.0)  # always avoid if visible
@@ -65,7 +66,7 @@ class TwistController(Node):
         self._visible_count = 0
         self._last_error_t  = self.get_clock().now()
         self._last_obs_t    = self.get_clock().now()
-        self._enabled       = True  # 
+        self._enabled       = False  # 
 
         # --- Subscribers ---
         self._error_sub = self.create_subscription(
@@ -209,15 +210,25 @@ class TwistController(Node):
         follow_kp     = self.get_parameter('follow_kp').value
 
         angular_z = -follow_kp * self._lane_error
+        forward_speed = max(
+            0.15,
+            0.4 * (1.0 - min(abs(self._lane_error), 1.0))
+        )
 
         if not self._lanes_visible:
             self._first_time = True
             forward_speed = 0.2
-            #angular_z += 0.06 if self._lane_error < 0 else -0.06
+            angular_z += 0.03  if self._lane_error < 0 else angular_z - 0.03
         if self._lanes_visible and self._first_time:
-            self._visible_count += 1 
-            angular_z = 0.0
-            forward_speed = 0.0
+
+            angular_z = 0
+            # forward_speed = max(
+            #     0.15,
+            #     0.4 * (1.0 - min(abs(self._lane_error * 2.0), 1.0))
+            # )
+            #self._visible_count += 1 
+            # angular_z = 0.0
+            # forward_speed = 0.2
             print("\nthis should be going here\n")
         if self._lanes_visible and self._visible_count >= 10:
             self._visible_count = 0
